@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulador de desconto por indicação</title>
+<style>
+:root{--bg:#f3f5f7;--card:#fff;--ink:#14212b;--mute:#5d6b76;--line:#d9e0e5;--acc:#0b5cad;--accbg:#e4effa;--ok:#0f7b4f;--okbg:#e2f4ec;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f161c;--card:#18222b;--ink:#e8eef2;--mute:#93a2ae;--line:#2b3842;--acc:#6db2f2;--accbg:#173247;--ok:#5fd1a0;--okbg:#153429}}
+:root[data-theme="dark"]{--bg:#0f161c;--card:#18222b;--ink:#e8eef2;--mute:#93a2ae;--line:#2b3842;--acc:#6db2f2;--accbg:#173247;--ok:#5fd1a0;--okbg:#153429}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,-apple-system,Arial,sans-serif}
+main{max-width:720px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}
+p.sub{margin:0 0 20px;color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:520px){.grid{grid-template-columns:1fr}}
+label{display:block;font-weight:600;font-size:.9rem;margin-bottom:4px}
+.in{display:flex;align-items:center;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:0 10px}
+.in:focus-within{outline:2px solid var(--acc)}
+.in span{color:var(--mute);margin-right:6px}
+input{width:100%;border:0;background:transparent;color:var(--ink);font:inherit;padding:10px 0;outline:none}
+small{display:block;color:var(--mute);margin-top:4px;font-size:.8rem}
+h2{font-size:1rem;margin:0 0 10px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row b{white-space:nowrap}
+.hl{background:var(--okbg);border-color:transparent}
+.hl .big{font-size:1.15rem;font-weight:700;color:var(--ok);margin:0}
+.note{background:var(--accbg);border-radius:6px;padding:10px 12px;font-size:.88rem;color:var(--ink)}
+.empty{color:var(--mute)}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600}
+td.r,th.r{text-align:right}
+.scroll{overflow-x:auto}
+.credit{margin-top:24px;text-align:center;color:var(--mute);font-size:.85rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Simulador de desconto por indicação</h1>
+  <p class="sub">Informe as faturas e veja o abatimento de quem indica e de quem é indicado.</p>
+
+  <section class="card">
+    <div class="grid">
+      <div>
+        <label for="fInd">Fatura de quem indica</label>
+        <div class="in"><span>R$</span><input id="fInd" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0,00"></div>
+      </div>
+      <div>
+        <label for="fInv">Fatura do indicado</label>
+        <div class="in"><span>R$</span><input id="fInv" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0,00"></div>
+      </div>
+      <div>
+        <label for="pInv">Desconto do indicado no 1º mês</label>
+        <div class="in"><input id="pInv" type="number" inputmode="decimal" min="0" max="100" step="1" value="50"><span>%</span></div>
+      </div>
+      <div>
+        <label for="pInd">Crédito de quem indica</label>
+        <div class="in"><input id="pInd" type="number" inputmode="decimal" min="0" max="100" step="1" value="100"><span>%</span></div>
+        <small>% do desconto concedido ao indicado. 100% = mesmo valor.</small>
+      </div>
+    </div>
+  </section>
+
+  <div id="out"><p class="empty">Preencha as duas faturas para simular.</p></div>
+  <footer class="credit">Documento criado por Gustavo Maia</footer>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const brl = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const r2 = v => Math.round(v*100)/100;
+const plural = (n,s,p) => n + ' ' + (n===1?s:p);
+
+function calc(){
+  const fInd = parseFloat($('fInd').value), fInv = parseFloat($('fInv').value);
+  const pInv = parseFloat($('pInv').value), pInd = parseFloat($('pInd').value);
+  const out = $('out');
+  if(!(fInd>0) || !(fInv>0) || isNaN(pInv) || isNaN(pInd)){
+    out.innerHTML = '<p class="empty">Preencha as duas faturas para simular.</p>'; return;
+  }
+  const descInv = r2(fInv * pInv/100);
+  const pagaInv = r2(fInv - descInv);
+  const credito = r2(descInv * pInd/100);
+
+  let html = `
+  <section class="card">
+    <h2>Indicado</h2>
+    <div class="row"><span>Fatura</span><b>${brl(fInv)}</b></div>
+    <div class="row"><span>Desconto no 1º mês (${pInv}%)</span><b>− ${brl(descInv)}</b></div>
+    <div class="row"><span>Paga no 1º mês</span><b>${brl(pagaInv)}</b></div>
+  </section>
+  <section class="card">
+    <h2>Quem indicou</h2>
+    <div class="row"><span>Fatura mensal</span><b>${brl(fInd)}</b></div>
+    <div class="row"><span>Crédito recebido</span><b>${brl(credito)}</b></div>`;
+
+  let plan = [];
+  if(credito < fInd){
+    const paga = r2(fInd - credito);
+    plan.push({m:1,desc:credito,paga});
+    html += `</section>
+    <section class="card hl">
+      <p class="big">Crédito não zera a fatura</p>
+      <div class="row"><span>Meses isentos</span><b>0</b></div>
+      <div class="row"><span>Paga no 1º mês</span><b>${brl(paga)}</b></div>
+      <div class="row"><span>A partir do 2º mês</span><b>${brl(fInd)}</b></div>
+    </section>`;
+  } else {
+    const cheios = Math.floor(r2(credito / fInd) + 1e-9);
+    const resto = r2(credito - cheios*fInd);
+    const paga = resto>0 ? r2(fInd - resto) : fInd;
+    for(let i=1;i<=cheios;i++) plan.push({m:i,desc:fInd,paga:0});
+    const voltaMes = cheios+1;
+    plan.push({m:voltaMes,desc:resto,paga});
+    html += `</section>
+    <section class="card hl">
+      <p class="big">Fatura isenta por ${plural(cheios,'mês','meses')}</p>
+      <div class="row"><span>Meses 1 a ${cheios} (isentos)</span><b>${brl(0)}</b></div>
+      <div class="row"><span>Volta a pagar no mês ${voltaMes}</span><b>${brl(paga)}</b></div>
+      <div class="row"><span>${resto>0?'Saldo de crédito usado nesse mês':'Sem saldo de crédito restante'}</span><b>${resto>0?'− '+brl(resto):brl(0)}</b></div>
+      <div class="row"><span>A partir do mês ${voltaMes+1}</span><b>${brl(fInd)}</b></div>
+    </section>`;
+  }
+
+  html += `<p class="note">Cálculo: crédito = desconto do indicado × % de crédito. O crédito abate a fatura de quem indica mês a mês; meses cobertos por inteiro ficam isentos e o saldo restante abate o mês em que volta a pagar. Ajuste os percentuais se a regra da campanha for outra.</p>`;
+  out.innerHTML = html;
+}
+['fInd','fInv','pInv','pInd'].forEach(id=>$(id).addEventListener('input',calc));
+</script>
+</body>
+</html>
