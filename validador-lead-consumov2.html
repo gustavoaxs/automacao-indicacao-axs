@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validador de lead - consumo médio x faixa de atendimento</title>
+<style>
+:root{--bg:#f3f5f7;--card:#fff;--ink:#14212b;--mute:#5d6b76;--line:#d9e0e5;--head:#1f4e79;--in:#fff3d1;
+--okbg:#e2f4ec;--ok:#0f7b4f;--nobg:#fde6e6;--no:#b3261e;--warnbg:#ffe9cf;--warn:#a85d00}
+@media (prefers-color-scheme:dark){:root{--bg:#0f161c;--card:#18222b;--ink:#e8eef2;--mute:#93a2ae;--line:#2b3842;--head:#17375a;--in:#3a331c;
+--okbg:#153429;--ok:#5fd1a0;--nobg:#3a1c1c;--no:#ff8f86;--warnbg:#3b2a14;--warn:#ffb95e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,Arial,sans-serif}
+header{background:var(--head);color:#fff;text-align:center;padding:16px}
+header h1{margin:0;font-size:1.25rem}
+main{max-width:900px;margin:0 auto;padding:16px}
+.hint{color:var(--mute);font-style:italic;margin:0 0 16px}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.layout{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+h2{font-size:1rem;margin:0 0 12px}
+label{display:block;font-weight:600;font-size:.9rem;margin:10px 0 4px}
+select,input[type=number]{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--in);color:var(--ink);font:inherit}
+.months{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 12px}
+.months label{margin:0;font-weight:400;font-size:.85rem;color:var(--mute)}
+.chk{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-weight:600;font-size:.9rem;cursor:pointer}
+.chk input{width:18px;height:18px;margin-top:2px}
+.chk small{display:block;font-weight:400;color:var(--mute)}
+.row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.row:last-of-type{border-bottom:0}
+.status{border-radius:8px;text-align:center;padding:14px;font-weight:700;font-size:1.2rem;margin-top:12px}
+.status small{display:block;font-weight:400;font-size:.85rem;margin-top:4px}
+.ok{background:var(--okbg);color:var(--ok)}.no{background:var(--nobg);color:var(--no)}.warn{background:var(--warnbg);color:var(--warn)}
+.btn{margin-top:12px;padding:8px 14px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:6px;cursor:pointer;font:inherit}
+details summary{cursor:pointer;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:10px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+th{background:var(--head);color:#fff}
+.legend{font-size:.85rem;color:var(--mute)}
+.scroll{overflow-x:auto}
+td input{width:70px;padding:5px 6px;background:var(--in)}
+.addrow{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:6px}
+.addrow input{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--in);color:var(--ink);font:inherit}
+.btn+.btn{margin-left:8px}
+.x{border:0;background:transparent;color:var(--no);font-size:1.2rem;cursor:pointer}
+</style>
+</head>
+<body>
+<header><h1>Validador de lead – consumo médio x faixa de atendimento</h1></header>
+<main>
+  <p class="hint">Preencha os meses de consumo do lead (até 12), selecione a distribuidora e o tipo de atendimento. A média considera apenas os meses informados.</p>
+  <div class="layout">
+    <section class="card">
+      <h2>Dados do lead</h2>
+      <label for="dist">Distribuidora</label>
+      <select id="dist"></select>
+      <label for="tipo">Tipo de atendimento</label>
+      <select id="tipo">
+        <option value="">Selecione...</option>
+        <option>Monofásico</option><option>Bifásico</option><option>Trifásico</option>
+      </select>
+      <label class="chk"><input type="checkbox" id="social"><span>Cliente com benefício do governo (tarifa social)<small>Desconta 200 kWh da média antes de comparar com o mínimo.</small></span></label>
+      <h2 style="margin-top:18px">Consumo dos últimos meses (kWh)</h2>
+      <div class="months" id="months"></div>
+      <button class="btn" id="limpar" type="button">Limpar consumos</button>
+    </section>
+
+    <section>
+      <div class="card">
+        <h2>Resultado</h2>
+        <div class="row"><span>Meses informados</span><b id="qtd">0</b></div>
+        <div class="row"><span>Média informada (kWh)</span><b id="media">–</b></div>
+        <div class="row"><span>Desconto tarifa social</span><b id="desc">–</b></div>
+        <div class="row"><span>Média considerada (kWh)</span><b id="considerada">–</b></div>
+        <div class="row"><span>Mínimo da faixa (kWh)</span><b id="minimo">–</b></div>
+        <div class="row"><span>Diferença para o mínimo</span><b id="dif">–</b></div>
+        <div class="status warn" id="status">FALTA CONFIGURAR<small>Selecione a distribuidora, o tipo e informe ao menos um mês.</small></div>
+        <p class="legend">Verde: média dentro da faixa · Vermelho: média fora da faixa · Laranja: falta configurar/selecionar.</p>
+      </div>
+      <div class="card">
+        <details open>
+          <summary>Parâmetros de atendimento (editáveis)</summary>
+          <p class="legend">Altere os mínimos (kWh) quando houver mudança. As alterações ficam salvas neste navegador.</p>
+          <div class="scroll"><table><thead><tr><th>Distribuidora</th><th>Mono</th><th>Bi</th><th>Tri</th><th></th></tr></thead><tbody id="params"></tbody></table></div>
+          <h2 style="margin-top:14px">Adicionar / atualizar distribuidora</h2>
+          <div class="addrow">
+            <input type="text" id="nNome" placeholder="Nome (ex.: CELESC - SC)">
+            <input type="number" id="nMono" min="0" placeholder="Mono">
+            <input type="number" id="nBi" min="0" placeholder="Bi">
+            <input type="number" id="nTri" min="0" placeholder="Tri">
+          </div>
+          <button class="btn" id="add" type="button">Salvar distribuidora</button>
+          <button class="btn" id="restaurar" type="button">Restaurar valores originais</button>
+        </details>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+/* Tabela de parâmetros: edite aqui para incluir/alterar distribuidoras e mínimos. */
+const DEFAULTS = {
+  "CEMIG - MG":       {"Monofásico":153,"Bifásico":173,"Trifásico":223},
+  "COPEL - PR":       {"Monofásico":189,"Bifásico":209,"Trifásico":259},
+  "CPFL Paulista - SP":{"Monofásico":250,"Bifásico":270,"Trifásico":320},
+  "ELEKTRO - SP":     {"Monofásico":250,"Bifásico":270,"Trifásico":320},
+  "ENERGISA - MT":    {"Monofásico":210,"Bifásico":230,"Trifásico":280},
+  "EQUATORIAL - GO":  {"Monofásico":156,"Bifásico":176,"Trifásico":226}
+};
+const DESCONTO_SOCIAL = 200;
+const TIPOS = ["Monofásico","Bifásico","Trifásico"];
+const KEY = 'validador-lead-params-v1';
+let PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
+try{ const sv = localStorage.getItem(KEY); if(sv) PARAMS = JSON.parse(sv); }catch(e){}
+function salvar(){ try{ localStorage.setItem(KEY, JSON.stringify(PARAMS)); }catch(e){} }
+const esc = t => String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+
+const $ = id => document.getElementById(id);
+const fmt = v => v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+// montar selects, meses e tabela
+let mh = '';
+for(let i=1;i<=12;i++){const n=String(i).padStart(2,'0'); mh += `<div><label for="m${i}">Mês ${n}</label><input type="number" id="m${i}" class="mes" min="0" step="1" inputmode="decimal"></div>`;}
+$('months').innerHTML = mh;
+
+function renderDist(){
+  const sel = $('dist'), atual = sel.value;
+  sel.innerHTML = '<option value="">Selecione...</option>' + Object.keys(PARAMS).map(d=>`<option>${esc(d)}</option>`).join('');
+  sel.value = PARAMS[atual] ? atual : '';
+}
+function renderParams(){
+  $('params').innerHTML = Object.entries(PARAMS).map(([d,t])=>
+    `<tr data-d="${esc(d)}"><td>${esc(d)}</td>` +
+    TIPOS.map(k=>`<td><input type="number" min="0" step="1" data-k="${k}" value="${t[k]}"></td>`).join('') +
+    `<td><button type="button" class="x" title="Remover" data-del="1">×</button></td></tr>`).join('');
+}
+function refresh(){ salvar(); renderDist(); renderParams(); calc(); }
+$('params').addEventListener('input',e=>{
+  const i=e.target, tr=i.closest('tr'); if(!tr||!i.dataset.k) return;
+  const v=parseFloat(i.value);
+  if(!isNaN(v)&&v>=0){ PARAMS[tr.dataset.d][i.dataset.k]=v; salvar(); calc(); }
+});
+$('params').addEventListener('click',e=>{
+  if(!e.target.dataset.del) return;
+  const d=e.target.closest('tr').dataset.d;
+  if(confirm('Remover '+d+'?')){ delete PARAMS[d]; refresh(); }
+});
+$('add').addEventListener('click',()=>{
+  const nome=$('nNome').value.trim(), v=['nMono','nBi','nTri'].map(id=>parseFloat($(id).value));
+  if(!nome || v.some(x=>isNaN(x)||x<0)){ alert('Informe o nome e os três mínimos.'); return; }
+  PARAMS[nome]={"Monofásico":v[0],"Bifásico":v[1],"Trifásico":v[2]};
+  ['nNome','nMono','nBi','nTri'].forEach(id=>$(id).value='');
+  refresh();
+});
+$('restaurar').addEventListener('click',()=>{
+  if(confirm('Restaurar os parâmetros originais? As alterações serão perdidas.')){ PARAMS=JSON.parse(JSON.stringify(DEFAULTS)); refresh(); }
+});
+renderDist(); renderParams();
+
+function calc(){
+  const vals = [...document.querySelectorAll('.mes')].map(i=>i.value.trim()).filter(v=>v!=='' && !isNaN(v) && Number(v)>=0).map(Number);
+  const qtd = vals.length;
+  const media = qtd ? vals.reduce((a,b)=>a+b,0)/qtd : null;
+  const social = $('social').checked;
+  const dist = $('dist').value, tipo = $('tipo').value;
+  const minimo = (dist && tipo) ? PARAMS[dist][tipo] : null;
+
+  $('qtd').textContent = qtd;
+  $('media').textContent = media===null ? '–' : fmt(media);
+  $('desc').textContent = social ? '− ' + fmt(DESCONTO_SOCIAL) : 'Não se aplica';
+  $('minimo').textContent = minimo===null ? '–' : minimo;
+
+  const st = $('status');
+  if(media===null || minimo===null){
+    $('considerada').textContent = '–'; $('dif').textContent = '–';
+    st.className = 'status warn';
+    st.innerHTML = 'FALTA CONFIGURAR<small>Selecione a distribuidora, o tipo e informe ao menos um mês.</small>';
+    return;
+  }
+  const considerada = social ? Math.max(0, media - DESCONTO_SOCIAL) : media;
+  const dif = considerada - minimo;
+  $('considerada').textContent = fmt(considerada);
+  $('dif').textContent = (dif>=0?'+ ':'− ') + fmt(Math.abs(dif));
+  if(dif>=0){
+    st.className = 'status ok';
+    st.innerHTML = 'ATENDEMOS<small>Média considerada dentro da faixa mínima.</small>';
+  } else {
+    st.className = 'status no';
+    st.innerHTML = 'NÃO ATENDEMOS<small>Faltam ' + fmt(Math.abs(dif)) + ' kWh de média para atingir o mínimo.</small>';
+  }
+}
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',calc));
+$('limpar').addEventListener('click',()=>{document.querySelectorAll('.mes').forEach(i=>i.value='');calc();});
+calc();
+</script>
+</body>
+</html>
